@@ -28,6 +28,7 @@ enum class sync_word_e {
   , lbr  = 0x0a801921
   , xll  = 0x41a29547
   , x96  = 0x1d95f262
+  , x    = 0x02000850 // DTS:X
 };
 
 enum class frametype_e {
@@ -82,6 +83,7 @@ enum class dts_type_e {
   , express
   , es
   , x96_24
+  , x
 };
 
 enum class source_pcm_resolution_e {
@@ -242,7 +244,6 @@ public:
 protected:
   bool decode_asset(bit_reader_c &bc, substream_asset_t &asset);
   bool decode_lbr_header(bit_reader_c &bc, substream_asset_t &asset);
-  bool decode_xll_header(bit_reader_c &bc, substream_asset_t &asset);
   void parse_lbr_parameters(bit_reader_c &bc, substream_asset_t &asset);
   void parse_xll_parameters(bit_reader_c &bc, substream_asset_t &asset);
 

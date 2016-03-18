@@ -28,7 +28,7 @@
 #include "merge/input_x.h"
 #include "output/p_dts.h"
 
-#define READ_SIZE 16384
+#define READ_SIZE 32768
 
 int
 dts_reader_c::probe_file(mm_io_c *in,

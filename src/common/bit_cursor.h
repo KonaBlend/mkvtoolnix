@@ -159,6 +159,14 @@ public:
       skip_bits(m_bits_valid);
   }
 
+  bool bit_align(std::size_t align) {
+    auto pos = (get_bit_position() + align - 1) & ~(align - 1);
+    if (pos > (static_cast<std::size_t>(m_end_of_data - m_start_of_data) * 8))
+      return false;
+    set_bit_position(pos);
+    return true;
+  }
+
   void set_bit_position(std::size_t pos) {
     if (pos > (static_cast<std::size_t>(m_end_of_data - m_start_of_data) * 8)) {
       m_byte_position = m_end_of_data;

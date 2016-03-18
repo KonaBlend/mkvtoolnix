@@ -20,9 +20,11 @@
 
 #include "common/bit_cursor.h"
 #include "common/dts.h"
+#include "common/dts_xll.h"
 #include "common/endian.h"
 #include "common/list_utils.h"
 #include "common/math.h"
+#include "common/format.h"
 
 // ---------------------------------------------------------------------------
 
@@ -375,6 +377,7 @@ header_t::get_codec_specialization()
        : dts_type_e::express         == dts_type ? codec_c::specialization_e::dts_express
        : dts_type_e::es              == dts_type ? codec_c::specialization_e::dts_es
        : dts_type_e::x96_24          == dts_type ? codec_c::specialization_e::dts_96_24
+       : dts_type_e::x               == dts_type ? codec_c::specialization_e::dts_x
        :                                           codec_c::specialization_e::none;
 }
 
@@ -585,47 +588,6 @@ header_t::decode_lbr_header(bit_reader_c &bc,
 }
 
 bool
-header_t::decode_xll_header(bit_reader_c &bc,
-                            substream_asset_t &asset) {
-  bc.set_bit_position((asset.xll_offset + asset.xll_sync_offset) * 8);
-  if (asset.xll_sync_present && (bc.get_bits(32) != static_cast<uint32_t>(sync_word_e::xll)))
-    return false;
-
-  if (!has_core && !(asset.extension_mask & exss_lbr))
-    core_sampling_frequency = substream_assets[0].max_sample_rate;
-
-  return true;
-
-  // // Decode common header.
-  // bc.skip_bits(4);              // version
-  // auto header_size     = bc.get_bits(8);
-  // auto frame_size_bits = bc.get_bits(5);
-  // bc.skip_bits(frame_size_bits); // frame size
-
-  // auto num_channel_sets = bc.get_bits(4);
-  // if (!num_channel_sets)
-  //   return false;
-
-  // bc.skip_bits(4);              // num segments in frame
-  // auto num_samples_in_segment = 1 << bc.get_bits(4);
-
-  // bc.set_bit_position(asset.xll_offset * 8 + header_size);
-
-  // // Decode first channel set sub-header.
-  // bc.skip_bits(10);             // channel set header size
-  // auto channel_set_ll_channel = bc.get_bits(4);
-  // bc.skip_bits(channel_set_ll_channel); // residual channel encode
-  // bc.skip_bits(5 + 5);                  // bit resolution, bit width
-
-  // auto sampling_frequency_idx      = bc.get_bits(4);
-  // auto sampling_frequency_modifier = bc.get_bits(2);
-  // if (!has_core && !(asset.extension_mask & exss_lbr))
-  //   core_sampling_frequency = substream_assets[0].max_sample_rate;
-
-  // return true;
-}
-
-bool
 header_t::decode_asset(bit_reader_c &bc,
                        substream_asset_t &asset) {
   auto descriptor_pos  = bc.get_bit_position();
@@ -774,11 +736,18 @@ header_t::decode_asset(bit_reader_c &bc,
   if ((asset.extension_mask & exss_lbr) && !decode_lbr_header(bc, asset))
     return false;
 
-  if ((asset.extension_mask & exss_xll) && !decode_xll_header(bc, asset))
-    return false;
+  xll_header_cptr xllh;
+  if (asset.extension_mask & exss_xll) {
+    xllh = decode_xll_header(bc, asset);
+    if (!xllh)
+      return false;
+
+    if (!has_core && !(asset.extension_mask & exss_lbr))
+      core_sampling_frequency = substream_assets[0].max_sample_rate;
+  }
 
   if (asset.extension_mask & exss_xll)
-    dts_type = dts_type_e::master_audio;
+    dts_type = (xllh && xllh->dtsx) ? dts_type_e::x : dts_type_e::master_audio;
 
   else if (asset.extension_mask & (exss_xbr | exss_x96 | exss_xxch))
     dts_type = dts_type_e::high_resolution;
